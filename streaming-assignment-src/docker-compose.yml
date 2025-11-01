@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:3.9
+    container_name: zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: bitnami/kafka:3.6
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+
+  flume:
+    build:
+      context: ./flume
+    container_name: flume
+    depends_on:
+      - kafka
+    volumes:
+      - ./flume/flume.conf:/opt/flume/conf/flume.conf:ro
+      - ./data/logs:/data/logs
+    command: ["/opt/flume/bin/flume-ng", "agent", "-n", "a1", "-f", "/opt/flume/conf/flume.conf", "-Dflume.root.logger=INFO,console"]
+
+  producer:
+    build:
+      context: ./services/producer
+    container_name: producer
+    depends_on:
+      - flume
+    environment:
+      - LOG_FILE=/data/logs/input.log
+      - PRODUCE_RATE_PER_SEC=5
+    volumes:
+      - ./data/logs:/data/logs
+
+  consumer:
+    build:
+      context: ./services/consumer
+    container_name: consumer
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=events
+      - GROUP_ID=demo-consumer
+
+volumes:
+  data:
+
+
+
