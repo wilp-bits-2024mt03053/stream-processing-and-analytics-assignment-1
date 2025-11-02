@@ -14,7 +14,7 @@ This demo shows a simple streaming architecture built with Docker:
 - Docker Compose
 
 ### Architecture
-![image](./images/architecture.png)
+![image](./streaming-assignment-src/images/architecture.png)
 
 ### Prerequisites
 
